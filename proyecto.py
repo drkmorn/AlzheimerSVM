@@ -1,8 +1,6 @@
-#Encontrar el directorio exacto donde están las imágenes
-base_dir = os.path.join(repo_dir, "imgs")
-
 import os
 import matplotlib.pyplot as plt
+from PIL import Image
 
 #directorio donde esttán las imágenes
 base_dir = "./imgs"
@@ -38,12 +36,11 @@ for folder in folders:
 
 
 #COMPROBAREMOS EL TAMAÑO DE LAS IMÁGENES
-from PIL import Image
-import os
+
 
 #Volvemos a cargar el directorio donde se encuentran las imágenes, está será la última vez que comentemos esto, de ahora en más cada que se use en el código
 #ya no lo vamos a mencionar
-base_dir = "/content/ia-2024/imgs"
+base_dir = "./imgs/"
 
 #Creamos una lista donde se va a estar almacenando el tamaño de las imágenes, es decir, largo y ancho
 image_sizes = []
