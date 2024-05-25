@@ -77,10 +77,10 @@ plt.show()
 #vamos a recortar todas las imágenes originales, y crear un directorio donde estarán las recortadas, ya que son las que nos interesa conservar para el
 #análisis y evaluación del modelo
 
-base_dir = "/content/ia-2024/imgs"
+base_dir = "./imgs"
 
 #En este directorio donde se guardarán las imágenes recortadas, que se llama como el de imgs, pero cropped que significa recortado en inglés
-cropped_dir = "/content/ia-2024/imgs_cropped"
+cropped_dir = "./imgs_cropped"
 os.makedirs(cropped_dir, exist_ok=True)
 
 #Vamos a seleccionar dos parámetros, crop top y bottom, es decir, recorte por abajo y recorte por arriba, ya que esta es la parte de la radiografía que sobra
@@ -117,7 +117,7 @@ for folder in folders:
 
 #Volvemos a cargar el directorio donde se encuentran las imágenes, está será la última vez que comentemos esto, de ahora en más cada que se use en el código
 #ya no lo vamos a mencionar
-cropped_dir = "/content/ia-2024/imgs_cropped"
+cropped_dir = "./imgs_cropped"
 
 #Creamos una lista donde se va a estar almacenando el tamaño de las imágenes, es decir, largo y ancho
 cropped_image_sizes = []
@@ -151,3 +151,52 @@ plt.grid(True)
 plt.show()
 
 """Y como podemos notar, efectivamente se tiene el mismo tamaño, por lo que hasta el momento nuestro preprocesamiento va bien.
+
+### Patrón de colores en las imágenes
+
+Necesitamos ver si todas las imágenes tienen una tonalidad parecida, puesto que esto nos va a permitir tener un proceso de clasificación más coherente y que pueda ser más confiable para este tipo de problemas sobre clasificar radiografías, ya que la confianza en el modelo debe ser lo mejor posible, aunque claro, al hacer esto vamos a perder variabilidad en los patrones de color si queremos ingresar otros datos, pero usualmente las radiografías siempre suelen tener el mismo tono, por lo que creemos esto será una buena idea e implementación.
+
+Esto lo haremos usando el sistema de tonalidad de grises, ya que nuestras radiografías están en tonos de grises, donde se usa un solo canal de color para representar la intensidad, yendo ed 0 a 255, donde el 0 es negro absoluto y 255 blanco absoluto, además tener todo en esta escala ayuda a no cargar tanto costo computacional.
+"""
+
+#esto no lo vamos a comentar, es donde están las imágenes recortadas
+cropped_dir = "./imgs_cropped"
+
+#lista donde vamos a almacenar la tonalidad en escala de grises para cada imagen
+average_brightness_values = []
+
+#Iterar sobre las carpetas, de nuevo, no haremos mucho comentario
+folders = ["MildDemented", "ModerateDemented", "NonDemented", "VeryMildDemented"]
+for folder in folders:
+    folder_path = os.path.join(cropped_dir, folder)
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+        #para cada una de las imágenes
+        with Image.open(image_path) as img:
+            #Convertir la imagen a escala de grises
+            img_gray = img.convert('L')
+
+            #Y ahora vamos a calcular la tonalidad promedio de los píxeles en escala de grises, para obtener el brillo
+            brightness = img_gray.getdata()
+            average_brightness = sum(brightness) / len(brightness)
+            average_brightness_values.append(average_brightness)
+
+#Grafica
+plt.figure(figsize=(10, 6))
+plt.hist(average_brightness_values, bins=50, color='skyblue', edgecolor='black')
+plt.title('Tonalidad de las Imágenes Recortadas')
+plt.xlabel('Tonalidad Promedio')
+plt.ylabel('Número de Imágenes')
+plt.grid(True)
+plt.show()
+
+"""Podemos ver que la mayoría de las imágenes tiene un tono de grises parecido, cerca del 80 en el valor de escala de grises, no vamos a hacer modificaciones para tener todas del mismo tono, puesto que estaríamos quitando mucha generalidad al modelo, dejándolo así podemos tener un poco más de variabilidad en los datos que nos puede ayudar a obtener mejores resultados.
+
+## Elección del modelo
+
+Ya tenemos los datos con su primera preprocesación, la general que es para poder implementarlo a cualquier tipo de modelo, pero bien, ahora la pregunta es, ¿Qué modelo usar?
+
+Bueno, sabemos de primera mano que por la cantidad de datos y etiquetas lo mejor a usar podrían ser Redes Neuronales, usando deeplearning, pero este proceso es muy tardado y conlleva alto costo computacional, es por esto que veremos si podemos escoger otro modelo que sea más simple en implementar y ver si tiene buenos resultados.
+
+Proponemos el SVM, este modelo es eficaz cuando se tienen grandes dimensiones de datos, en este caso tenemos imágenes, donde las dimensiones son los pixeles y tenemos 176x176, es por esto que hemos optado por usar este modelo, más aún haremos como tal dos modelos, primero uno donde probaremos el modelo sin realizar una disminución de dimensiones, y luego uno donde applicaremos PCA para ver si hay alguna mejora, para cada uno haremos ajustes de hiperparámetros necesarios que nos permitan obtener el mejor modelo.
+"""
