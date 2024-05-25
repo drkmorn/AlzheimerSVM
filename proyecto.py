@@ -847,3 +847,138 @@ scaler = StandardScaler()
 
 #Ahora hacemos uso de la instancia creada y normalizamos el array X_flattened que es donde tenemos las imágenes aplanadas
 X_normalized = scaler.fit_transform(X_flattened)
+
+"""### PCA de imágenes aplanadas y normalizadas
+
+Finalmente, haremos uso de PCA para las imágenes que ya fueron aplanadas y posteriormente normalizadas, para disminuir la cantidad de dimensiones en nuestras imágenes y poder ver si tiene una mejor efectividad.
+
+Cómo vimos, las radiografías tienen un fondo negro, y nosotros hicimos un primer recorte para verificar que estén cuadradas y que se conserve la imagen del cerebro, la computadora hará un PCA para ver si se puede reducir aún más la cantidad de pixeles, lo que podría causar una mayor efectividad.
+
+Para el método de PCA primero debemos de definir la cantidad de componentes que consideremos óptimos para tener buenos resultados, para no hacer prueba y error, haremos uso de la varianza explicada acumulada, que nos dará el número de componentes que expliquen un alto porcentaje de la varianza, una vez que este número sea calculado, será la cantidad de componentes que tomará el PCA de las imágenes
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+
+
+#aplicamos el pca al array de imágenes normalizadas, este array es resultado de normalizar el array aplanado, por lo que estamos aplicando el PCA directamente a las imágenes
+#aplanadas y normalizadas, en este caso no especificamos el número de componentes, para calcular la varianza explicada acumulada
+pca = PCA().fit(X_normalized)
+
+#Ahora sí, calculamos la varianza explicada acumulada para ver cuantos componentes serán necesarios para tener cierta cantidad de esto, nosotros buscaremos un 90%, algo que se considera
+#estándar o un valor esperado y de buen resultado
+cumulative_variance_explained = np.cumsum(pca.explained_variance_ratio_)
+
+#Haremos una gráfica para la VEA que nos permitirá ver la cantidad de componentes a nosotros, la máquina realmente no lo necesita ver xd
+plt.figure(figsize=(10, 6))
+plt.plot(cumulative_variance_explained, marker='o')
+plt.xlabel('Número de componentes principales')
+plt.ylabel('Varianza explicada acumulada')
+plt.title('VEA por número de componentes principales')
+plt.grid(True)
+plt.show()
+
+#vamos a escoger un número de componentes de tal manera que expliquen al menos un 90% de la varianza acumulada
+n_components = np.argmax(cumulative_variance_explained >= 0.90) + 1
+print(f'# componentes que explican al menos el 90% de la varianza: {n_components}')
+
+#Ahora, aplicamos el PCA a las imágenes pero con el número de componentes que ya fueron calculados
+pca = PCA(n_components=n_components)
+X_pca = pca.fit_transform(X_normalized)
+
+#y finalmente, veremos como quedan las dimensiones después del PCA
+print("Dimensiones de las imágenes post-PCA:", X_pca.shape)
+
+"""El número minimo de componentes que explican un 90% de la varianza es de 1263, es decir, reducimos nuestro vector de características de 30k a únicamente 1263.
+
+## Entrenamiento SVM con PCA
+
+Una vez que hemos realizado todo el procesamiento adecuado para esta sección, vamos a evaluar como se comporta el modelo haciendo uso de los 3 diferentes kernels, vamos a hacer algo parecido a la parte donde no usamos PCA.
+
+## SVM con Kernel Lineal post-PCA
+
+Primero probaremos únicamente el kernel lineal, si funciona bien, se ajustarán hiperparámetros después, usaremos la semilla 170119 de manera estratificada para la división de los datos, tomando un 70% train y 30% test
+"""
+
+#SVM kernel lineal PCA
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svm_classifier = SVC(kernel='linear', random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+print("Accuracy del modelo SVM con kernel lineal, semilla 170119, divisón estratificada y PCA:", accuracy)
+
+"""Podemos ver que la accuracy del modelo con kernel lineal post pca tiene una accuracy peor a antes de usar el PCA, siendo de 96% que es un resultado muy eficiente aunque resulta menos eficiente comparado al 97% antes obtenido, pero la matriz de confusión y los resultados particulares de la categoría VeryMildDemented son los que realmente influyen en si escoger o no este modelo."""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Lineal con PCA')
+plt.show()
+
+"""Este modelo tiene altas deficiencias en la categoría que nos resulta de interés, por lo que sería descartado de manera inmediata.
+
+## Implementación SVM con kernel polinomial y PCA
+
+Ahora veremos para el kernel polinomial, tomaremos el parámetro de regularización C = 1, en caso de decidir este modelo veremos si es necesario ajustarlo para tener una mayor o menor regularización, tomamos el valor de uno ya que se considera un valor "moderado", y tomamos el polinomio de grado 3.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel polinomial, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklearn, y agregamos los parámetros que son distintos
+#en este caso el degree y C
+svm_classifier = SVC(kernel='poly', degree = 3, C=1, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+print("Accuracy del modelo SVM con kernel polinomial de 3 grados y con C=1, semilla 170119, divisón estratificada y PCA:", accuracy)
+
+#corrimos este código una primera vez y ahora lo silenciamos porque vimos que no tiene buenos resultados y el modelo de kernel lineal es mejor
