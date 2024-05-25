@@ -200,3 +200,227 @@ Bueno, sabemos de primera mano que por la cantidad de datos y etiquetas lo mejor
 
 Proponemos el SVM, este modelo es eficaz cuando se tienen grandes dimensiones de datos, en este caso tenemos imágenes, donde las dimensiones son los pixeles y tenemos 176x176, es por esto que hemos optado por usar este modelo, más aún haremos como tal dos modelos, primero uno donde probaremos el modelo sin realizar una disminución de dimensiones, y luego uno donde applicaremos PCA para ver si hay alguna mejora, para cada uno haremos ajustes de hiperparámetros necesarios que nos permitan obtener el mejor modelo.
 """
+
+### Normalización de las imágenes ya procesadas
+
+
+#Descargar la librería scikit-image para poder normalizar los pixeles
+from skimage import io, transform
+import numpy as np
+
+#directorio
+cropped_dir = "/content/ia-2024/imgs_cropped"
+
+#Otra lista más, ahora para almacenar las imágenes recortadas
+normalized_images = []
+
+#iteracion en todas las imagenes en todos los folders
+folders = ["MildDemented", "ModerateDemented", "NonDemented", "VeryMildDemented"]
+for folder in folders:
+    folder_path = os.path.join(cropped_dir, folder)
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+
+        #vamos a cargar todas las imágenes que vamos teniendo
+        img = io.imread(image_path)
+
+        #y normalizamos los pixeles de cada una de ellas, restando los pixeles originales, menos la media entre la desviación estándar de los pixeles en la imagen
+        img_normalized = (img - np.mean(img)) / np.std(img)
+
+        #vamos añadiendo cada imagen normalizada a nuestra lista
+        normalized_images.append(img_normalized)
+
+### Aplanamiento de Imágenes:
+
+#Nuestras imágenes, al ser imágenes, tienen muchas dimensiones, debemos de realizar un aplanado que nos permitirá tener las imágenes como conjuntos de características bidimensionales, que es la entrada que espera nuestro modelo de SVM, para solucionar esto tenemos que hacer un aplanamiento de imágenes, para que puedan ser tratadas como vectores de características.
+
+#Hacemos una lista donde se irán almacenando las imágenes aplanadas
+flattened_images = []
+
+#hacemos otra itreacion, pero en este caso iteramos sobre todas las imágenes que ya fueron normalizadas, estas son las que vamos a aplanar
+for img_normalized in normalized_images:
+    #Aplanamos la imagen y la vamos agregando a la lista creada para almacenar imágenes aplanadas, usamos una función .flatten de la librería
+    flattened_images.append(img_normalized.flatten())
+
+#convertimos la lista donde se guardaron las imagenes aplanadas a un tipo de array numpy
+X_flattened = np.array(flattened_images)
+
+#verificar las dimensiones del array resultante
+print("Cantidad de imagenes a la izquierda, longitug del vector unidimensional que representa cada imagen", X_flattened.shape)
+
+"""Una vez que tenemos las imágenes ya con todo el procesamiento completo, vamos a la parte de crear el modelo.
+
+### División en conjunto de entrenamiento y prueba
+
+Finalmente tenemos todos los datos ya procesados (al menos lo necesario para esta sección), así que ahora necesitamos dividir los datos en conjunto de entrenamiento y prueba.
+
+El problema es que como vimos, tenemos un severo desbalanceo en los datos para la cantidad de las clases, recordemos cuantos datos teníamos:
+
+- Número de imágenes en 'MildDemented': 717
+
+- Número de imágenes en 'ModerateDemented': 52
+
+- Número de imágenes en 'NonDemented': 2000
+
+- Número de imágenes en 'VeryMildDemented': 1792
+
+Es por esto que vamos a realizar una división de los datos de manera estratificada, lo que nos va a grantizar que la proporción en la división en cada clase se mantenga para ambos conjuntos de train y test de manera equilibrada, porque si no hacemos esto, al realizar la división tomando 70% de train, puede ser que todas nuestras imágenes de ModerateDemented sean seleccionadas para el Train, lo que haría que no tengamos forma de probarlas, o puede pasar al revés, por esto lo haremos de manera estratificada.
+
+Tomaremos 70% de los datos para el conjunto de train y 30% para el test, esto porque hay una característica donde sólo tenemos 52 datos, tomar esta división nos permite obetener una cantidad considerable de datos para cada uno de los conjuntos.
+
+Así como hicimos en el proyecto 2, lo que haremos es tomar 3 semillas: 170119, 2024 y 123456789, para observar si la división de los datos afecta la precisión del modelo, calcularemos el "mejor" modelo en base a la métrica de accuracy, usando un SVM con kernel lineal, kernel polinomial y Gaussiana, es decir, tendremos 9 combinaciones al final del cual sólo quedará una.
+"""
+
+#vamos a iterar sobre las clases que tenemos y cargar las imágenes que ya hemos preprocesado anteriormente
+
+from sklearn.model_selection import train_test_split
+
+#La lista de equitetas que tenemos para cada clase, las cuales ya hemos mencionado varias veces
+labels = ['MildDemented', 'ModerateDemented', 'NonDemented', 'VeryMildDemented']
+
+#Otras dos listas más, en la lista X se guardan las imágenes procesadas, mientras que en la y se encuentran las etiquetas de cada una de las imágenes
+X = []
+y = []
+
+#Otra iteración, en este caso vamos a iterar por cada etiqueta en el conjunto de etiquetas
+for label in labels:
+    #buscamos el directorio donde se encuentran las imágenes y obtenemos el nombre de su etiqueta
+    folder_path = os.path.join(cropped_dir, label)
+    #y ya que lo tenemos, iteramos sober todas las imágenes de la categoría actual
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+        #cargamos ahora la imagen que ya fue normalizada
+        img_normalized = io.imread(image_path)
+        #Añadimos la imagen a la lista X
+        X.append(img_normalized)
+        #y su etiqueta a la lista y
+        y.append(label)
+
+#Convertimos nuestras listas a un array de numpy para poder realizar bien las divisiones y los demás procedimientos
+X = np.array(X)
+y = np.array(y)
+
+#hacemos una división estratificada para el conjunto de train y test, en este caso usamos la semilla 170119 para observar si la división de los datos afecta
+#la efectividad del modelo
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#vamos a ver cuantos datos de cada catacterística se quedaron en cada uno de los conjuntos de los datos
+#creamos una función que nos permitirá CONTAR el número de datos que hay en cada una de las etiquetas
+
+print("\tCantidad de datos por conjuntos para la primer semilla: 170119")
+print("\n")
+def contar(y):
+    clases, recuentos = np.unique(y, return_counts=True)
+    for clase, recuento in zip(clases, recuentos):
+        print(f"Cantidad de Datos en '{clase}': {recuento}")
+
+#Calculamos el conjunto de datos de cada característica para el conjunto de train
+print("Conjunto de entrenamiento:")
+contar(y_train)
+
+#y ahora lo mismo, pero para test
+print("\nConjunto de prueba:")
+contar(y_test)
+
+#vamos a iterar sobre las clases que tenemos y cargar las imágenes que ya hemos preprocesado anteriormente
+
+from sklearn.model_selection import train_test_split
+
+#La lista de equitetas que tenemos para cada clase, las cuales ya hemos mencionado varias veces
+labels = ['MildDemented', 'ModerateDemented', 'NonDemented', 'VeryMildDemented']
+
+#Otras dos listas más, en la lista X se guardan las imágenes procesadas, mientras que en la y se encuentran las etiquetas de cada una de las imágenes
+X = []
+y = []
+
+#Otra iteración, en este caso vamos a iterar por cada etiqueta en el conjunto de etiquetas
+for label in labels:
+    #buscamos el directorio donde se encuentran las imágenes y obtenemos el nombre de su etiqueta
+    folder_path = os.path.join(cropped_dir, label)
+    #y ya que lo tenemos, iteramos sober todas las imágenes de la categoría actual
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+        #cargamos ahora la imagen que ya fue normalizada
+        img_normalized = io.imread(image_path)
+        #Añadimos la imagen a la lista X
+        X.append(img_normalized)
+        #y su etiqueta a la lista y
+        y.append(label)
+
+#Convertimos nuestras listas a un array de numpy para poder realizar bien las divisiones y los demás procedimientos
+X = np.array(X)
+y = np.array(y)
+
+#hacemos una división estratificada para el conjunto de train y test, en este caso usamos la semilla 170119 para observar si la división de los datos afecta
+#la efectividad del modelo
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=2024, stratify=y)
+
+#vamos a ver cuantos datos de cada catacterística se quedaron en cada uno de los conjuntos de los datos
+#creamos una función que nos permitirá CONTAR el número de datos que hay en cada una de las etiquetas
+
+print("\tCantidad de datos por conjuntos para la primer semilla: 2024")
+print("\n")
+def contar(y):
+    clases, recuentos = np.unique(y, return_counts=True)
+    for clase, recuento in zip(clases, recuentos):
+        print(f"Cantidad de Datos en '{clase}': {recuento}")
+
+#Calculamos el conjunto de datos de cada característica para el conjunto de train
+print("Conjunto de entrenamiento:")
+contar(y_train)
+
+#y ahora lo mismo, pero para test
+print("\nConjunto de prueba:")
+contar(y_test)
+
+#vamos a iterar sobre las clases que tenemos y cargar las imágenes que ya hemos preprocesado anteriormente
+
+from sklearn.model_selection import train_test_split
+
+#La lista de equitetas que tenemos para cada clase, las cuales ya hemos mencionado varias veces
+labels = ['MildDemented', 'ModerateDemented', 'NonDemented', 'VeryMildDemented']
+
+#Otras dos listas más, en la lista X se guardan las imágenes procesadas, mientras que en la y se encuentran las etiquetas de cada una de las imágenes
+X = []
+y = []
+
+#Otra iteración, en este caso vamos a iterar por cada etiqueta en el conjunto de etiquetas
+for label in labels:
+    #buscamos el directorio donde se encuentran las imágenes y obtenemos el nombre de su etiqueta
+    folder_path = os.path.join(cropped_dir, label)
+    #y ya que lo tenemos, iteramos sober todas las imágenes de la categoría actual
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+        #cargamos ahora la imagen que ya fue normalizada
+        img_normalized = io.imread(image_path)
+        #Añadimos la imagen a la lista X
+        X.append(img_normalized)
+        #y su etiqueta a la lista y
+        y.append(label)
+
+#Convertimos nuestras listas a un array de numpy para poder realizar bien las divisiones y los demás procedimientos
+X = np.array(X)
+y = np.array(y)
+
+#hacemos una división estratificada para el conjunto de train y test, en este caso usamos la semilla 170119 para observar si la división de los datos afecta
+#la efectividad del modelo
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=123456789, stratify=y)
+
+#vamos a ver cuantos datos de cada catacterística se quedaron en cada uno de los conjuntos de los datos
+#creamos una función que nos permitirá CONTAR el número de datos que hay en cada una de las etiquetas
+
+print("\tCantidad de datos por conjuntos para la primer semilla: 123456789")
+print("\n")
+def contar(y):
+    clases, recuentos = np.unique(y, return_counts=True)
+    for clase, recuento in zip(clases, recuentos):
+        print(f"Cantidad de Datos en '{clase}': {recuento}")
+
+#Calculamos el conjunto de datos de cada característica para el conjunto de train
+print("Conjunto de entrenamiento:")
+contar(y_train)
+
+#y ahora lo mismo, pero para test
+print("\nConjunto de prueba:")
+contar(y_test)
+
