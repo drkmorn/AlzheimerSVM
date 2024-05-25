@@ -1,3 +1,4 @@
+#%%
 import os
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -203,13 +204,13 @@ Proponemos el SVM, este modelo es eficaz cuando se tienen grandes dimensiones de
 
 ### Normalización de las imágenes ya procesadas
 
-
+#%%
 #Descargar la librería scikit-image para poder normalizar los pixeles
 from skimage import io, transform
 import numpy as np
 
 #directorio
-cropped_dir = "/imgs_cropped"
+cropped_dir = "./imgs_cropped"
 
 #Otra lista más, ahora para almacenar las imágenes recortadas
 normalized_images = []
@@ -229,7 +230,8 @@ for folder in folders:
 
         #vamos añadiendo cada imagen normalizada a nuestra lista
         normalized_images.append(img_normalized)
-
+        
+#%%
 ### Aplanamiento de Imágenes:
 
 #Nuestras imágenes, al ser imágenes, tienen muchas dimensiones, debemos de realizar un aplanado que nos permitirá tener las imágenes como conjuntos de características bidimensionales, que es la entrada que espera nuestro modelo de SVM, para solucionar esto tenemos que hacer un aplanamiento de imágenes, para que puedan ser tratadas como vectores de características.
@@ -373,6 +375,7 @@ contar(y_train)
 print("\nConjunto de prueba:")
 contar(y_test)
 
+#%%
 #vamos a iterar sobre las clases que tenemos y cargar las imágenes que ya hemos preprocesado anteriormente
 
 from sklearn.model_selection import train_test_split
@@ -459,6 +462,7 @@ print("Precision del modelo:", precision)
 print("Recall del modelo:", recall)
 print("F1 score del modelo:", f1)
 
+#%%
 """Podemos ver que se tiene una accuracy imponente, se tiene cerca de un 97%, quizás el modelo esté sobreajustado, pero eso ya lo veremos más adelante en caso de optar por usar este modelo, de momento veamos la matriz de confusión generada:"""
 
 from sklearn.metrics import confusion_matrix
@@ -483,7 +487,7 @@ También podemos ver que la categoría de ModerateDemented tiene un 100% de clas
 
 Ahora veremos para el kernel polinomial, tomaremos el parámetro de regularización C = 1, en caso de decidir este modelo veremos si es necesario ajustarlo para tener una mayor o menor regularización, tomamos el valor de uno ya que se considera un valor "moderado", y tomamos el polinomio de grado 3.
 """
-
+#%%
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -539,7 +543,7 @@ plt.show()
 
 Por último, el modelo SVM con kernel Gaussiano, tomando el valor de la gamma como un inverso de la cantidad de características, y tomando de nuevo C = 1, nuevamente mencionamos que en caso de optar por este modelo, vamos a modificar los hiperparámetros más adelante, estos fueron tomados porque es algo así como el valor "común" que se suele usar.
 """
-
+#%%
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -586,7 +590,7 @@ plt.xlabel('Etiquetas predecidas')
 plt.ylabel('Etiquetas reales')
 plt.title('Matriz de Confusión para el Kernel Gaussiano')
 plt.show()
-
+#%%
 #corrimos este código una primera vez y ahora lo silenciamos porque vimos que no tiene buenos resultados y el modelo de kernel lineal es mejor
 
 """Este modelo resultó peor para clasificar lo que queríamos, es por esto que después de ver todos los modelos, optaremos por un kernel lineal y ajustar los hiperparámetros, ya que presentó mejores resultados y además, tardó menos tiempo en compilación, lo que es mejor
@@ -660,7 +664,7 @@ print("Accuracy del modelo con los mejores hiperparámetros, kernel lineal con s
 
 #Este código está silenciado porque si usamos la versión gratis de colab dice que tarda 83 horas en cargar xd
 #Así que lo compilamos en nuestro entorno local
-
+#%%
 """El código de arriba nos da el siguiente resultado:
 
 Mejores hiperparámetros para el modelo SVM con kernel Lineal:
@@ -670,7 +674,7 @@ Mejores hiperparámetros para el modelo SVM con kernel Lineal:
 
 La accuracy del modelo ahora con un valor de regularización igual a 0.1 tiene un valor del 98.17%, es decir, mejoró en alrededor de un 1%, lo cual es muy bueno puesto que queremos una efectividad casi del 100% para esta clasificación, aunque claro está, debemos ver que no haya un sobreajuste en nuestro modelo, pero veamos como se ve la matriz de confusión.
 """
-
+"""
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
@@ -699,12 +703,13 @@ plt.xlabel('Etiquetas Predichas')
 plt.ylabel('Etiquetas Reales')
 plt.title('Matriz de Confusión del mejor modelo')
 plt.show()
-
-"""Podemos ver que si tiene mejores clasificaciones que el modelo antes de ajustar hiperparámetros, sobretodo en la parte de NonDemented, puede tener mejor clasificación para decirles a las personas que no tienen la enfermedad, y en general parece presentar mejores resultados, pero si notamos en la categoría de VeryMild, la que nos interesa, podemos ver que se presentan problemas, puesto que tiene una cantidad poco mayor de datos mal clasificados, donde categoriza 13 de los datos de VeryMild como NonDemented, mientras que en el modelo antes de ajustarlos sólo hubo 4 datos mal clasificados, es por este hecho que decidimos mejor conservar únicamente el modelo con kernel lineal, puesto que tiene mejor clasificación para resolver el problema al que nos enfrentamos.
+#%%
+"""
+#Podemos ver que si tiene mejores clasificaciones que el modelo antes de ajustar hiperparámetros, sobretodo en la parte de NonDemented, puede tener mejor clasificación para decirles a las personas que no tienen la enfermedad, y en general parece presentar mejores resultados, pero si notamos en la categoría de VeryMild, la que nos interesa, podemos ver que se presentan problemas, puesto que tiene una cantidad poco mayor de datos mal clasificados, donde categoriza 13 de los datos de VeryMild como NonDemented, mientras que en el modelo antes de ajustarlos sólo hubo 4 datos mal clasificados, es por este hecho que decidimos mejor conservar únicamente el modelo con kernel lineal, puesto que tiene mejor clasificación para resolver el problema al que nos enfrentamos.
 ## ¿Sobreajuste?
 
-Podemos ver que nuestro modelo al que sólo le especificamos el tipo de kernel como lineal tiene un 97% de accuracy, y hay una de las características que tiene un 100% de efectividad, pues ahora necesitamos ver si el modelo no presenta problemas de sobreajuste, y lo haremos usando la curva de aprendizaje para observar el comportamiento de los datos.
-
+#Podemos ver que nuestro modelo al que sólo le especificamos el tipo de kernel como lineal tiene un 97% de accuracy, y hay una de las características que tiene un 100% de efectividad, pues ahora necesitamos ver si el modelo no presenta problemas de sobreajuste, y lo haremos usando la curva de aprendizaje para observar el comportamiento de los datos.
+#%%
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
@@ -739,6 +744,7 @@ plt.ylabel('Accuracy')
 plt.legend(loc='best')
 plt.show()
 
+"""
 Queríamos observar el sobreajuste a partir de la curva de aprendizaje, pero después de una hora ejecutando, vimos que este proceso es demasiado tardado por la naturaleza de los datos, es por esto que optaremos por otra manera de ver la posible existencia de sobreajuste calculando la Accuracy del modelo para cada conjunto, si la accuracy para el conjunto train es mayor que la de test, podemos inferir en que el modelo está sobreajustado.
 """
 
@@ -770,7 +776,7 @@ train_accuracy = svmejor.score(X_train, y_train)
 test_accuracy = svmejor.score(X_test, y_test)
 print("Accuracy del conjunto de Entrenamiento: ", train_accuracy)
 print("Accuracy del conjunto de Prueba: ", test_accuracy)
-
+#%%
 """Con los resultados obtenidos:
 
     Accuracy del conjunto de Entrenamiento:  1.0
@@ -802,7 +808,7 @@ from skimage import io
 
 #Recordemos que nuestras imágenes recortadas se encuentran en este directorio:
 
-cropped_dir = "/imgs_cropped"
+cropped_dir = "./imgs_cropped"
 
 #Y como hicimos antes, vamos a crear una lista donde tengamos almacenadas las imágenes aplanadas
 flattened_images = []
@@ -856,7 +862,7 @@ Cómo vimos, las radiografías tienen un fondo negro, y nosotros hicimos un prim
 
 Para el método de PCA primero debemos de definir la cantidad de componentes que consideremos óptimos para tener buenos resultados, para no hacer prueba y error, haremos uso de la varianza explicada acumulada, que nos dará el número de componentes que expliquen un alto porcentaje de la varianza, una vez que este número sea calculado, será la cantidad de componentes que tomará el PCA de las imágenes
 """
-
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
@@ -952,7 +958,7 @@ plt.show()
 
 Ahora veremos para el kernel polinomial, tomaremos el parámetro de regularización C = 1, en caso de decidir este modelo veremos si es necesario ajustarlo para tener una mayor o menor regularización, tomamos el valor de uno ya que se considera un valor "moderado", y tomamos el polinomio de grado 3.
 """
-
+#%%
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -1004,7 +1010,7 @@ plt.show()
 
 Por último, el modelo SVM con kernel Gaussiano, tomando el valor de la gamma como un inverso de la cantidad de características, y tomando de nuevo C = 1, nuevamente mencionamos que en caso de optar por este modelo, vamos a modificar los hiperparámetros más adelante, estos fueron tomados porque es algo así como el valor "común" que se suele usar.
 """
-
+#%%
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
@@ -1049,7 +1055,7 @@ plt.xlabel('Etiquetas predecidas')
 plt.ylabel('Etiquetas reales')
 plt.title('Matriz de Confusión para el Kernel Gaussiano')
 plt.show()
-
+#%%
 """En la matriz de confusión vemos que también se tienen muy buenos resultados, únicamente teniendo 3 falsos negativos en la categoría VeryMildDemented.
 
 ## Ajuste de hiperparámetros para el kernel polinomial con PCA
@@ -1135,7 +1141,7 @@ plt.xlabel('Clase predicha')
 plt.ylabel('Clase verdadera')
 plt.title('Matriz de Confusión del mejor modelo SVM kernel polinomial post-PCA')
 plt.show()
-
+#%%
 """Podemos ver que este modelo mejora un poco las demás categorías, mientras que la de VeryMildDemented se mantiene de igual manera, es por esto que decidiremos optar por este mejor modelo, presenta buenos resultados en todas las categorías y además, mantiene los excelentes resultados en la categoría VMD que es la de mayor importancia en este proyecto.
 
 ## Sobreajuste modelo SVM - PCA
