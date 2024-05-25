@@ -701,3 +701,149 @@ plt.title('Matriz de Confusión del mejor modelo')
 plt.show()
 
 """Podemos ver que si tiene mejores clasificaciones que el modelo antes de ajustar hiperparámetros, sobretodo en la parte de NonDemented, puede tener mejor clasificación para decirles a las personas que no tienen la enfermedad, y en general parece presentar mejores resultados, pero si notamos en la categoría de VeryMild, la que nos interesa, podemos ver que se presentan problemas, puesto que tiene una cantidad poco mayor de datos mal clasificados, donde categoriza 13 de los datos de VeryMild como NonDemented, mientras que en el modelo antes de ajustarlos sólo hubo 4 datos mal clasificados, es por este hecho que decidimos mejor conservar únicamente el modelo con kernel lineal, puesto que tiene mejor clasificación para resolver el problema al que nos enfrentamos.
+## ¿Sobreajuste?
+
+Podemos ver que nuestro modelo al que sólo le especificamos el tipo de kernel como lineal tiene un 97% de accuracy, y hay una de las características que tiene un 100% de efectividad, pues ahora necesitamos ver si el modelo no presenta problemas de sobreajuste, y lo haremos usando la curva de aprendizaje para observar el comportamiento de los datos.
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import learning_curve
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svm_classifier = SVC(kernel='linear', random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular la accuracy hacemos una comparación entre las etiquetas predichas y las reales
+accuracy = accuracy_score(y_test, y_pred)
+
+#vamos a crear la curva de aprendizaje a partir de la métrica accuracy, donde vamos a definir los tamaños de entrenamiento para observar como va cambiando la curva según la cantidad de datos
+#tomando 5 de CV
+train_sizes, train_scores, test_scores = learning_curve(svm_classifier, X_flattened, y, cv=5)
+train_scores_mean = np.mean(train_scores, axis=1)
+test_scores_mean = np.mean(test_scores, axis=1)
+plt.plot(train_sizes, train_scores_mean, label='Accuracy del conjunto Train')
+plt.plot(train_sizes, test_scores_mean, label='Accuracy del CV')
+plt.title('Curva de Aprendizaje')
+plt.xlabel('Tamaño del conjunto Train')
+plt.ylabel('Accuracy')
+plt.legend(loc='best')
+plt.show()
+
+Queríamos observar el sobreajuste a partir de la curva de aprendizaje, pero después de una hora ejecutando, vimos que este proceso es demasiado tardado por la naturaleza de los datos, es por esto que optaremos por otra manera de ver la posible existencia de sobreajuste calculando la Accuracy del modelo para cada conjunto, si la accuracy para el conjunto train es mayor que la de test, podemos inferir en que el modelo está sobreajustado.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import learning_curve
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svmejor = SVC(kernel='linear', C = 0.1, class_weight = None, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svmejor.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svmejor.predict(X_test)
+
+#para calcular la accuracy hacemos una comparación entre las etiquetas predichas y las reales
+accuracy = accuracy_score(y_test, y_pred)
+
+#por motivos de tiempos, no vamos a poder ver la curva de aprendizaje, pero una forma numérica de ver la posible existencia de sobreajuste es verificar la accuracy del rendimiento
+#del modelo para el conjunto de train y para el de test, si la diferencia es mucha, es decir, si la accuracy del train es mayor de la de test, seguramente sí haya sobreajuste, por lo que
+#vamos a calcular la accuracy de cada uno de los conjuntos evaluados en el modelo para observar la diferencia
+train_accuracy = svmejor.score(X_train, y_train)
+test_accuracy = svmejor.score(X_test, y_test)
+print("Accuracy del conjunto de Entrenamiento: ", train_accuracy)
+print("Accuracy del conjunto de Prueba: ", test_accuracy)
+
+"""Con los resultados obtenidos:
+
+    Accuracy del conjunto de Entrenamiento:  1.0
+    Accuracy del conjunto de Prueba:  0.9715120525931337
+
+Indica que el modelo tuvo una accuracy perfecta en el conjunto de entrenamiento, esto a veces puede ser algo malo debido a que puede tomarse de inmediato como un sobreajuste, pero podemos ver que el Accuracy del conjunto de Prueba es de 0.97, lo que indica que el modelo también se está ajustando bien a los datos de prueba, por lo que se conluye que puede haber un pequeño sobreajuste, pero este no afecta demasiado a la calidad del modelo, por lo que este modelo resultó ser el más eficiente.
+
+## Conclusiones modelo SVM con Kernel Lineal y sin PCA
+
+Al evaluar el modelo con diversos kernels vimos mucha variabilidad en lo que respecta a los puntajes de cada uno, el mejor fue el lineal con un 97% y además se desempeñó bien en el papel de la categoría que nos interesaba clasificar correctamente, después intentamos ver si no había alguna forma de mejorarlo haciendo uso de GridSearch para verificar los mejores hiperparámetros, esta modificación tuvo una mejoría hasta llegar al 98%, pero presentó más problemas en la categoría que nosotros tomamos como la más importante, teniendo más errores de clasificación tipo 2, es decir, falsos negativos, decirle a una persona que no está enferma cuando en realidad si lo está, este tipo de errores pueden afectar la vida de las personas, por lo que tuvimos que optar por el modelo sin los hiperparámetros ya que presentaba menor cantidad de estos errores.
+
+Al evaluar el sobreajuste del modelo, pudimos notar de manera númerica calculando la Accuracy para cada conjunto que no había tanto sobreajuste, por lo que el modelo terminó cumpliendo su porpósito.
+
+A pesar de que vimos que existe un mejor modelo que tiene una precisión mucho mejor, tuvimos que descartarlo, ya que no cumplió las expectativas pensadas para dar resolución al conflicto al que nos enfrentamos, pero aún con esto, nuestro modelo tiene un 97% de efectividad, es buen modelo y tiene una excelente evaluación, de igual manera hay que tener en cuenta que las imágenes colocadas son todas casi iguales, sería interesante ver que ocurre con una radiografía de un cerebro volteado, o que esté a color, pero igual podríamos afrontar estos problemas si modificamos el preprocesamiento de los datos.
+
+## Implementación de modelo SVM con PCA
+
+Una vez que ya decidimos usar este tipo de modelo, primero veremos su precisión usándolo sin PCA, para poder hacer un mejor uso de este modelo, vamos aplanar y normalizar, en este caso ese será el orden, vamos a realizar el aplanamiento de las imágenes ya procesadas (las que vimos que tienen el mismo color y tamaño), para tenerlas como vectores unidimensionales, donde cada imagen se convierte en un vector, y cada elemento del vector corresponde a un píxel de la imagen, para poder después realizar normalización que nos ayudará a que todos los píxeles tengan la misma escala y con esto, poder hacer PCA para reducir la dimensionalidad.
+
+### Aplanamiento de Imágenes
+"""
+
+#primero debemos aplanar las imágenes, por lo que debemos cargar las imágenes cortadas en el primer procesamiento, prácticamente, haremos un nuevo procesamiento de imágenes para implementar
+#este modelo
+
+import os
+import numpy as np
+from skimage import io
+
+#Recordemos que nuestras imágenes recortadas se encuentran en este directorio:
+
+cropped_dir = "/content/ia-2024/imgs_cropped"
+
+#Y como hicimos antes, vamos a crear una lista donde tengamos almacenadas las imágenes aplanadas
+flattened_images = []
+
+#Vamos a cargar la lista de etiquetas para que cada una de ellas se mantenga y asignarla después a las imágenes aplanadas mediante iteraciones
+labels = ['MildDemented', 'ModerateDemented', 'NonDemented', 'VeryMildDemented']
+#Y esta es la lista que va a air almacenando la etiqueta que corresponda a cierta imagen
+y = [] #le pusimos "y" porque esta será la etiqueta objetivo también en el modelo svm
+
+#Ahora si, vamos a iterar en cada categoría entre las etiquetas que ya cargamos en la lista
+for label in labels:
+  #obtenemos el path de cada folder de cada imagen cortada de cada categoría
+    folder_path = os.path.join(cropped_dir, label)
+    #ahora iteramos en cada imagen en la lista
+    for image_name in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_name)
+        #vamos a cargar la imagen recortada donde ya vimos la escala de grises y todo eso en el primer preprocesamiento
+        img = io.imread(image_path)
+        #Y ahora aplanamos la imagen y la agregamos a la lista de las imagenes aplanadas con el append
+        flattened_images.append(img.flatten())
+        #asignamos la etiqueta a la que pertenece la imagen
+        y.append(label)
+
+#Por último, la lista de imagenes aplanadas y de la etiqueta objetivo las convertimos a un arrary de numpy
+X_flattened = np.array(flattened_images)
+y = np.array(y)
+
+#por último, veremos las dimensiones de las imágenes aplanadas
+print("Dimensiones de las imágenes aplanadas", X_flattened.shape)
+
+"""### Normalización imágenes aplanadas
+
+Ya que las tenemos aplanadas, ahora las vamos a normalizar, para así, como ya se mencionó, tener todos los pixeles en la misma escala
+"""
+
+#normalizar las imágenes aplanadas, este proceso es más facil
+
+from sklearn.preprocessing import StandardScaler
+
+#creamos la instancia del escalador que nos ayudará a escalar las imagenes
+scaler = StandardScaler()
+
+#Ahora hacemos uso de la instancia creada y normalizamos el array X_flattened que es donde tenemos las imágenes aplanadas
+X_normalized = scaler.fit_transform(X_flattened)
