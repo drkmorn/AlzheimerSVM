@@ -209,7 +209,7 @@ from skimage import io, transform
 import numpy as np
 
 #directorio
-cropped_dir = "/content/ia-2024/imgs_cropped"
+cropped_dir = "/imgs_cropped"
 
 #Otra lista más, ahora para almacenar las imágenes recortadas
 normalized_images = []
@@ -802,7 +802,7 @@ from skimage import io
 
 #Recordemos que nuestras imágenes recortadas se encuentran en este directorio:
 
-cropped_dir = "/content/ia-2024/imgs_cropped"
+cropped_dir = "/imgs_cropped"
 
 #Y como hicimos antes, vamos a crear una lista donde tengamos almacenadas las imágenes aplanadas
 flattened_images = []
@@ -982,3 +982,203 @@ print("F1 score del modelo:", f1)
 print("Accuracy del modelo SVM con kernel polinomial de 3 grados y con C=1, semilla 170119, divisón estratificada y PCA:", accuracy)
 
 #corrimos este código una primera vez y ahora lo silenciamos porque vimos que no tiene buenos resultados y el modelo de kernel lineal es mejor
+"""Con un 99.05% de accuracy podemos ver que este modelo ha sido el mejor clasificador hasta ahora, teniendo la siguiente matriz de confusión:"""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Polinomial con PCA')
+plt.show()
+
+"""Teniendo únicamente un falso negativo en la categoría de mayor importancia, este modelo presenta resultados impresionantes, debemos ver si esto no tiene sobreajuste y en caso de ser el mejor, podemos probar con el conjunto test que tiene el repositorio de kaggle para probar la evaluación del modelo.
+
+## SVM con kernel Gaussiano y PCA
+
+Por último, el modelo SVM con kernel Gaussiano, tomando el valor de la gamma como un inverso de la cantidad de características, y tomando de nuevo C = 1, nuevamente mencionamos que en caso de optar por este modelo, vamos a modificar los hiperparámetros más adelante, estos fueron tomados porque es algo así como el valor "común" que se suele usar.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel gaussiano, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklearn, y agregamos los parámetros que son distintos
+#en este caso el degree y scale
+svm_classifier = SVC(kernel='rbf', gamma = 'scale', C=1, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+
+print("Accuracy del modelo SVM con kernel Gaussiano, con gamma = scale y con C=1, semilla 170119, divisón estratificada y PCA:", accuracy)
+
+"""Con una accuracy del 98%, este modelo presenta mejores resultados generales al kernel lineal, pero peores al polinomial, también, podemos darnos cuenta que resultó con mejores evaluaciones al modelo gaussiano donde no habíamos procesado con PCA, por lo que el PCA sí dió mejores resultados en general."""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Gaussiano')
+plt.show()
+
+"""En la matriz de confusión vemos que también se tienen muy buenos resultados, únicamente teniendo 3 falsos negativos en la categoría VeryMildDemented.
+
+## Ajuste de hiperparámetros para el kernel polinomial con PCA
+
+Una vez visto que el mejor modelo resultó ser el modelo con kernel polinomial post-pca, es momento de ver cuales serían los mejores hiperparámetros para nuestro modelo, tomaremos de nuevo el uso de gridsearchCV con 5 de CV, tomando una malla donde se irá cambiando lo siguiente:
+
+    'C': [0.1, 1, 10],
+    'degree': [2,3,4]
+
+Así es como tendremos al final un total de 45 fits, donde se calcularán los mejores hiperparámetros para el modelo.
+
+No usaremos ahora el hiperparámetro de los pesos, como la división está estratificada, esto no sentimos que sea tan necesario de verificar.
+"""
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+
+#creamos un clasificador polinomial con semilla de reproducibilidad 170119, este clasificador no tiene ningún hiperparámetro modificado, estos se verán más adelante
+svm_classifier = SVC(kernel='poly', random_state=170119)
+
+# Definir los rangos de hiperparámetros a buscar
+#creamos la malla de parámetros donde tomamos los valores ya especificados anteriormente
+param_grid = {
+    'degree': [2, 3, 4],
+    'C': [0.1, 1, 10]
+}
+
+#ahora sí, creamos el objecto de grid_search, busqueda en la malla definida, donde vamos a usar 5 de cv e ir viendo como cada modelo se va ajustando según la combinación de
+#hiperparámetros
+grid_search = GridSearchCV(estimator=svm_classifier, param_grid=param_grid, cv=5, scoring='accuracy', n_jobs=-1)
+
+#ajustamos el modelo con la búsqueda de malla para train y test
+grid_search.fit(X_train, y_train)
+
+#obtenemos los mejores hipeparámetros para el modelo
+best_params = grid_search.best_params_
+best_score = grid_search.best_score_
+
+print("Mejores hiperparámetros:", best_params)
+
+# Entrenar el modelo con los mejores hiperparámetros
+#una vez que tenemos los mejores hiperparámetros entrenamos el modelo con estos
+best_svm_classifier = grid_search.best_estimator_
+best_svm_classifier.fit(X_train, y_train)
+
+#realizamos predicciones con este mejor modelo para poder verificar la accuracy
+y_pred = best_svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy del mejor modelo SVM polinomial con división estratificada y PCA:", accuracy)
+
+"""Obtuvimos los resultados:
+     
+    Mejores hiperparámetros:
+    C: 10
+    degree: 2
+
+Este mejor modelo presenta una accuracy de 99.41%, que sí es mejor al modelo antes de ajustar los mejores hiperparámetros por un 0.36%, ahora veamos la matriz de confusión para ver que tan bien resulta este modelo:
+"""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+
+#hacemos las prediciones del conjunto de imágenes para el test usando el mejor modelo
+y_pred = best_svm_classifier.predict(X_test)
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasifica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, cmap='Blues', fmt='g', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Clase predicha')
+plt.ylabel('Clase verdadera')
+plt.title('Matriz de Confusión del mejor modelo SVM kernel polinomial post-PCA')
+plt.show()
+
+"""Podemos ver que este modelo mejora un poco las demás categorías, mientras que la de VeryMildDemented se mantiene de igual manera, es por esto que decidiremos optar por este mejor modelo, presenta buenos resultados en todas las categorías y además, mantiene los excelentes resultados en la categoría VMD que es la de mayor importancia en este proyecto.
+
+## Sobreajuste modelo SVM - PCA
+
+Ahora veremos el sobreajuste que pueda tener el mejor modelo: Polinomial con grado 2, valor de regularización igual a 10 después de usar PCA
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#vamos a crear el mejor modelo usando el svm de kernel polinomial con los mejores hiperparámetros
+svmejorpca = SVC(kernel='poly', degree=2, C=10, random_state=170119)
+
+#ahora hacemos el fit usando los datos de entrenamiento con el mejor modelo
+svmejorpca.fit(X_train, y_train)
+
+#hacemos las predicciones para cada uno de los conjuntos, los de train y test, en este caso veremos el sobreajuste según que tan bien se ajusta el modelo a cada característica
+#de esta forma veremos que tanta diferencia hay entre cada conjunto y si es que los datos están sobreajustados habrá una gran diferencia en la métrica accuracy calculdada
+#esto fue como lo que hicimos para ver el sobreajuste del modelo sin pca
+y_train_pred = svmejorpca.predict(X_train)
+y_test_pred = svmejorpca.predict(X_test)
+
+#calculamos la métrica accuracy para cada conjunto según las predicciones
+train_accuracy = accuracy_score(y_train, y_train_pred)
+test_accuracy = accuracy_score(y_test, y_test_pred)
+
+#vfemos la accuracy para cada conjunto
+print("Accuracy del conjunto de Entrenamiento:", train_accuracy)
+print("Accuracy del conjunto de Prueba:", test_accuracy)
+
+"""Con puntuaciones casi perfectas para ambos conjuntos, podemos inferir que el modelo clasifica bien ambas categorías y no hay suficiente evidencia de sobreajuste, lo que sugiere que el modelo es casi perfecto y soluciona bien nuestro problema
+
+## Conclusiones de la comparación
+
+El modelo con PCA tiene una eficiencia mucho mayor en la mayoría de kernels al comparado cuando no se usó PCA, llegando a tener un 99% de efectividad para nuestro modelo polinomial, esto es casi perfecto y tiene resultados sumamente buenos, sobre todo en la categoría de mayor interés.
+
+Aún con nuestro 99.41% de accuracy, debemos recordar que esto no podría sustituir el diagnóstico médico, puesto que este modelo y otros parecidos llegarían a ser sólo un apoyo a la medicina, más no una sustitución.
+
+## Fuentes:
+
+- Alzheimer’s Association. (2024). Datos y cifras sobre la enfermedad de Alzheimer. Recuperado el 8 de mayo de 2024, de https://www.alz.org/alzheimer-demencia/datos-y-cifras
+
+- CDC. (2024). The Truth About Aging and Dementia. Recuperado el 8 de mayo de 2024, de https://www.cdc.gov/aging/publications/features/Alz-Greater-Risk.html
+
+- Alzheimer’s Association. (2024). ¿Qué es la enfermedad de Alzheimer? Recuperado el 8 de mayo de 2024, de https://www.alz.org/alzheimer-demencia/que-es-la-enfermedad-de-alzheimer
+"""
