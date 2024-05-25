@@ -424,3 +424,280 @@ contar(y_train)
 print("\nConjunto de prueba:")
 contar(y_test)
 
+
+"""Pues, se tienen la misma cantidad de datos para cada una de las semillas, el problema es cuales serán los datos que se mantienen en cada categoría según la semilla, en este caso no prestaremos mucha atención y únicamente tomaremos la semilla de 170119 para evitar costo computacional y con esta vamos a ajustar el modelo con cada uno de los kernels para ver cual es mejor, posteriormente ajustar hiperparámetros, ver si no está sobreajustado y por último, la matriz de confusión para ver la eficacia del modelo en lo que nos interesa, poder clasificar bien la etapa de Alzheimer temprano para poder avisarle a los pacientes.
+
+### Ajustando el modelo SVM con Kernel Lineal sin PCA
+
+Vamos a implementar este modelo SVM, usando la semilla de reproducibilidad 170119 y sin hacer uso de PCA, con las imágenes recortadas y normalizadas
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svm_classifier = SVC(kernel='linear', random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Accuracy del modelo SVM con kernel lineal, semilla 170119, división estratificada:", accuracy)
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+
+"""Podemos ver que se tiene una accuracy imponente, se tiene cerca de un 97%, quizás el modelo esté sobreajustado, pero eso ya lo veremos más adelante en caso de optar por usar este modelo, de momento veamos la matriz de confusión generada:"""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Lineal')
+plt.show()
+
+"""Podemos ver que la categoría que más nos interesa, tiene una buena precisión, que es la de VeryMild, puesto que casi todas se clasifican correctamente y son pocas las que tienen una mala clasificación, aunque esto indica que de 538 personas, a 4 se les dirá que no tienen alzheimer lo que puede ser un problema, es mejor clasificar estas personas como si tuvieran un Alzheimer alto a decirles que no lo tengan, puesto que si les decimos que tienen Alzheimer las personas irán a empezar tratamientos y les harán mejores evaluaciones, pero decirles que no lo tienen, puede hacer que se confien y que no comiencen los tratamientos a tiempo.
+
+También podemos ver que la categoría de ModerateDemented tiene un 100% de clasificación, lo cual es extraño, seguramente nuestro modelo sí esté sobreajustado, lo vamos a ver si es que decidimos este modelo con kernel lineal.
+
+### Ajustando un modelo SVM con kernel polinomial y sin PCA
+
+Ahora veremos para el kernel polinomial, tomaremos el parámetro de regularización C = 1, en caso de decidir este modelo veremos si es necesario ajustarlo para tener una mayor o menor regularización, tomamos el valor de uno ya que se considera un valor "moderado", y tomamos el polinomio de grado 3.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel polinomial, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklearn, y agregamos los parámetros que son distintos
+#en este caso el degree y C
+svm_classifier = SVC(kernel='poly', degree = 3, C=1, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+print("Accuracy del modelo SVM con kernel polinomial de 3 grados y con C=1, semilla 170119, divisón estratificada:", accuracy)
+
+#corrimos este código una primera vez y ahora lo silenciamos porque vimos que no tiene buenos resultados y el modelo de kernel lineal es mejor
+
+"""Este modelo tiene un 85% de accuracy.
+
+Ahora veamos la matriz de confusión:
+"""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Polinomial de grado 3')
+plt.show()
+
+"""Podemos ver que no sólo el rendimiento según la medida Accuracy es menor al usar un kernel polinomial, si no que también la categoría que nos interesa clasificar de manera adecuada tiene más problemas, es por esto que no consideramos buena idea mantener este modelo, si bien podemos ajustar hiperparámetros para buscar mejores resultados, esta no será nuestra opción principal.
+
+### Modelo SVM con kernel Gaussiano y sin PCA
+
+Por último, el modelo SVM con kernel Gaussiano, tomando el valor de la gamma como un inverso de la cantidad de características, y tomando de nuevo C = 1, nuevamente mencionamos que en caso de optar por este modelo, vamos a modificar los hiperparámetros más adelante, estos fueron tomados porque es algo así como el valor "común" que se suele usar.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel gaussiano, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklearn, y agregamos los parámetros que son distintos
+#en este caso el degree y scale
+svm_classifier = SVC(kernel='rbf', gamma = 'scale', C=1, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+print("Accuracy del modelo SVM con kernel Gaussiano, con gamma = scale y con C=1, semilla 170119, divisón estratificada:", accuracy)
+
+"""Este modelo sólo tuvo 75% de accuracy, siendo el peor de los tres, aún así no son tan malos resultados.
+
+Ahora veamos la matriz de confusión de nuestra última prueba de kernel
+"""
+
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#calculamos la matriz de confusión comparando las y predichas por las y reales, y ver que tan bien clasfica las categorías
+conf_matrix = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas predecidas')
+plt.ylabel('Etiquetas reales')
+plt.title('Matriz de Confusión para el Kernel Gaussiano')
+plt.show()
+
+#corrimos este código una primera vez y ahora lo silenciamos porque vimos que no tiene buenos resultados y el modelo de kernel lineal es mejor
+
+"""Este modelo resultó peor para clasificar lo que queríamos, es por esto que después de ver todos los modelos, optaremos por un kernel lineal y ajustar los hiperparámetros, ya que presentó mejores resultados y además, tardó menos tiempo en compilación, lo que es mejor
+
+## Ajuste de Hiperparámetros
+
+En esta sección vamos a evaluar el modelo SVM con kernel lineal y ver cuales son los mejores hiperparámetros que podemos usar, vamos a hacer una búsqueda de malla, definida como:
+
+    'C': [0.1, 1, 10, 100],
+    'class_weight': [None, 'balanced']
+
+Donde C es el parámetro de regularización, y class_weight son los pesos, vamos a probar el modelo cambiando cada valor de C y los tipos de pesos, para ver cual tiene aún mejores resultados, además de tomar 5 de CV, teniendo así un total de 40 fits a probar hasta encontrar el mejor modelo.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import GridSearchCV
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svm_classifier = SVC(kernel='linear', random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svm_classifier.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svm_classifier.predict(X_test)
+
+#para calcular la accuracy hacemos una comparación entre las etiquetas predichas y las reales
+accuracy = accuracy_score(y_test, y_pred)
+
+#######VAMOS A HACER UNA BÚSQUEDA DE MALLA, PARA VER CUALES SON LOS MEJORES HIPERPARÁMETROS A USAR EN NUESTRO MODELO, VAMOS A CONSIDERAR CAMBIAR EL
+#PARÁMETRO DE REGULARIZACIÓN TOMANDO VALORES DE .01, 1, 10 Y 100, TOMAREMOS LOS PESOS COMO NO MODIFICARLOS O TENER PESOS BALANCEADOS EN EL MODELO,
+#ESTO PUEDE AYUDAR DEBIDO A LA NATURALEZA DESBALACEADA DE LOS DATOS, ESTO LO ANALIZARÁ EL PROGRAMA Y VERÁ SI SI ES MEJOR O NO
+
+#Definimos la malla en la que haremos las pruebas, en total serán 4x2x5, es decir, 100 fits, ya que tomaremos 5 de CV
+param_grid = {
+    'C': [0.1, 1, 10, 100],
+    'class_weight': [None, 'balanced']
+}
+
+#creamos una instancia de clasificador svm con un kernel lineal, que es el que vimos con mejores resultados
+svm_classifier = SVC(kernel='linear', random_state=170119)
+
+#Ahora cargamos el GridSearch, que hará los fits del modelo según los parámetros de la malla y se irá calculando la accuracy para cada combinación que tengamos
+#elegiremos el mejor modelo según está métrica
+grid_search = GridSearchCV(svm_classifier, param_grid, cv=5, scoring='accuracy')
+#Ahora vamos haciendo los fits
+grid_search.fit(X_train, y_train)
+
+#Vamos a obtener lo que el programa considera los mejores hiperparámetros para el modelo
+best_params = grid_search.best_params_
+print("Mejores hiperparámetros para el modelo SVM con kernel Lineal:", best_params)
+
+#Y obtenemos la accuracy del mejor modelo
+#para calcular las métricas hacemos una comparación entre las etiquetas predichas y las reales, en el caso de precision, f1 y recall usamos weighted que calcula la métrica para
+#cada clase y luego hace una media
+best_model = grid_search.best_estimator_
+best_accuracy = best_model.score(X_test, y_test)
+precision = precision_score(y_test, y_pred, average='weighted')
+recall = recall_score(y_test, y_pred, average='weighted')
+f1 = f1_score(y_test, y_pred, average='weighted')
+
+print("Precision del modelo:", precision)
+print("Recall del modelo:", recall)
+print("F1 score del modelo:", f1)
+print("Accuracy del modelo con los mejores hiperparámetros, kernel lineal con semilla 170119:", best_accuracy)
+
+
+#Este código está silenciado porque si usamos la versión gratis de colab dice que tarda 83 horas en cargar xd
+#Así que lo compilamos en nuestro entorno local
+
+"""El código de arriba nos da el siguiente resultado:
+
+Mejores hiperparámetros para el modelo SVM con kernel Lineal:
+
+    'C': 0.1, 'class_weight': None
+    Accuracy del modelo con los mejores hiperparámetros: 0.9817384952520087
+
+La accuracy del modelo ahora con un valor de regularización igual a 0.1 tiene un valor del 98.17%, es decir, mejoró en alrededor de un 1%, lo cual es muy bueno puesto que queremos una efectividad casi del 100% para esta clasificación, aunque claro está, debemos ver que no haya un sobreajuste en nuestro modelo, pero veamos como se ve la matriz de confusión.
+"""
+
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+#obtenemos de nuevo la división de los datos, con la semilla y la cantidad de datos ya establecida, y recordemos que está estratificada
+X_train, X_test, y_train, y_test = train_test_split(X_flattened, y, test_size=0.3, random_state=170119, stratify=y)
+
+#creamos un clasificador con kernel lineal, sin más,no hay mucho quer decir aquí más de usaremos SVC de la librería sklear
+svmejor = SVC(kernel='linear', C = 0.1, class_weight = None, random_state=170119)
+
+#Hacemos un fit del modelo usando los datos que se tomaron para el conjunto de entrenamiento
+svmejor.fit(X_train, y_train)
+
+#Realizamos unas predicciones con lo que sería el conjunto de imagenes de test, sin las etiquetas
+y_pred = svmejor.predict(X_test)
+
+
+#calcular la matriz de confusión, comparando los y reales y las etiquetas que predijo el modelo
+conf_matrix_manual = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix_manual, annot=True, fmt='d', cmap='Blues', xticklabels=labels, yticklabels=labels)
+plt.xlabel('Etiquetas Predichas')
+plt.ylabel('Etiquetas Reales')
+plt.title('Matriz de Confusión del mejor modelo')
+plt.show()
+
+"""Podemos ver que si tiene mejores clasificaciones que el modelo antes de ajustar hiperparámetros, sobretodo en la parte de NonDemented, puede tener mejor clasificación para decirles a las personas que no tienen la enfermedad, y en general parece presentar mejores resultados, pero si notamos en la categoría de VeryMild, la que nos interesa, podemos ver que se presentan problemas, puesto que tiene una cantidad poco mayor de datos mal clasificados, donde categoriza 13 de los datos de VeryMild como NonDemented, mientras que en el modelo antes de ajustarlos sólo hubo 4 datos mal clasificados, es por este hecho que decidimos mejor conservar únicamente el modelo con kernel lineal, puesto que tiene mejor clasificación para resolver el problema al que nos enfrentamos.
