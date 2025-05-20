@@ -71,4 +71,11 @@ El modelo final tuvo únicamente un falso negativo en la categoría más crític
 > Se superó la meta del 90% de efectividad  
 > Se alcanzó un rendimiento del **99.41%**, clasificando correctamente la mayoría de los casos críticos.
 
+---
+
+##  Autores
+
+- Ana Cristina Cuevas García  
+- Derek Saúl Morán Pérez  
+- Emiliano Vicaña García  
 
